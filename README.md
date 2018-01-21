@@ -1,3 +1,40 @@
+ let boolVal = UserDefaults.standard.value(forKey: "isFromLogin") as? Bool
+        
+        if boolVal != nil
+        {
+            if boolVal! {
+                UserDefaults.standard.set(false, forKey: "isFromLogin")
+                UserDefaults.standard.synchronize()
+                self.view.removeFromSuperview()
+               
+            }else{
+                let SpleCeVC = storyboard?.instantiateViewController(withIdentifier: "SplashViewController") as! SplashViewController
+                self.view.addSubview(SpleCeVC.view)
+                self.view.bringSubview(toFront: SpleCeVC.view)
+                self.addChildViewController(SpleCeVC)
+               
+            }
+        }else{
+            let SpleCeVC = storyboard?.instantiateViewController(withIdentifier: "SplashViewController") as! SplashViewController
+            self.view.addSubview(SpleCeVC.view)
+            self.view.bringSubview(toFront: SpleCeVC.view)
+            self.addChildViewController(SpleCeVC)
+           
+            
+        }
+        
+       self.btnLogin.CircleRoundsMainButton()
+    }
+
+
+
+
+
+
+
+
+
+===========================================
 // statusBar View
 extension UIApplication {
     var statusBarView: UIView? {
