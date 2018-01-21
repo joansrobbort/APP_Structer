@@ -459,6 +459,329 @@ class Pref {
 
 Scroling Animation
 
+class hederVC: UIViewController {
+
+    @IBOutlet weak var imgView: UIImageView!
+    var itemIndex: Int = 0
+    
+    var imageName: String = "" {
+        didSet {
+            if let imageView = imgView {
+                imageView.image = UIImage(named: imageName)
+            }
+        }
+    }
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        self.setView()
+    }
+    
+    
+    
+    func setView() {
+        self.imgView.layer.cornerRadius = 5.5
+        self.imgView.image = UIImage(named: imageName)
+    }
+
+
+}
+----------------------------------
+VC Animation
+
+
+
+@IBOutlet weak var viewscrolling: ViewPager!
+    var arrOfferImage = ["Image-10",
+                         "Image-11",
+                         "Image-12",
+                         "Image-13",
+                         "Image-14"]
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        self.setView()
+    }
+    //MARK: - Other methods
+        func setView() {
+            
+            self.subviewOfferImageSetUp()
+        }
+    
+    func numberOfItems(viewPager: ViewPager) -> Int {
+        return arrOfferImage.count
+    }
+    
+    func viewAtIndex(viewPager: ViewPager, index: Int, view: UIView?) -> UIView {
+        let objHeaderViewPagerVC = hederVC(nibName: "hederVC", bundle: nil)
+        objHeaderViewPagerVC.imageName = arrOfferImage[index]
+        return objHeaderViewPagerVC.view
+    }
+    ==================================================
+    
+    import UIKit
+
+@objc public protocol  ViewPagerDataSource {
+    func numberOfItems(viewPager:ViewPager) -> Int
+    func viewAtIndex(viewPager:ViewPager, index:Int, view:UIView?) -> UIView
+    @objc optional func didSelectedItem(index:Int)
+//    optional func didSelectedLike(index:Int)
+//    optional func didSelectedAddToCollection(index:Int)
+    
+}
+
+public class ViewPager: UIView {
+    
+    var pageControl:UIPageControl = UIPageControl()
+    var scrollView:UIScrollView = UIScrollView()
+    var currentPosition:Int = 0
+    
+    var dataSource:ViewPagerDataSource? = nil {
+        didSet {
+            reloadData()
+        }
+    }
+    
+    var numberOfItems:Int = 0
+    var itemViews:Dictionary<Int, UIView> = [:]
+    
+    required  public init?(coder aDecoder: NSCoder) {
+        super.init(coder: aDecoder)
+        setupView()
+    }
+    
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        setupView()
+    }
+    
+    func setupView() {
+        self.addSubview(scrollView)
+        self.addSubview(pageControl)
+        setupScroolView();
+        setupPageControl();
+        
+        
+        reloadData()
+    }
+    
+    func setupScroolView() {
+        scrollView.isPagingEnabled = true;
+        scrollView.alwaysBounceHorizontal = false
+        scrollView.bounces = false
+        scrollView.backgroundColor = UIColor.clear //AppColor.AppTheme_Primary
+        scrollView.showsHorizontalScrollIndicator = false
+        scrollView.showsVerticalScrollIndicator = false
+        scrollView.delegate = self;
+        scrollView.tag = 10
+        let topContraints = NSLayoutConstraint(item: scrollView, attribute:
+            .top, relatedBy: .equal, toItem: self,
+                  attribute: NSLayoutAttribute.top, multiplier: 1.0,
+                  constant: 0)
+        
+        let bottomContraints = NSLayoutConstraint(item: scrollView, attribute:
+            .bottom, relatedBy: .equal, toItem: self,
+                     attribute: NSLayoutAttribute.bottom, multiplier: 1.0,
+                     constant: 0)
+        
+        let leftContraints = NSLayoutConstraint(item: scrollView, attribute:
+            .leadingMargin, relatedBy: .equal, toItem: self,
+                            attribute: .leadingMargin, multiplier: 1.0,
+                            constant: 0)
+        
+        let rightContraints = NSLayoutConstraint(item: scrollView, attribute:
+            .trailingMargin, relatedBy: .equal, toItem: self,
+                             attribute: .trailingMargin, multiplier: 1.0,
+                             constant: 0)
+        
+        
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([topContraints,rightContraints,leftContraints,bottomContraints])
+    }
+    
+    func setupPageControl() {
+        
+        self.pageControl.numberOfPages = numberOfItems
+        self.pageControl.currentPage = 0
+        
+        self.pageControl.pageIndicatorTintColor = UIColor.lightGray
+        self.pageControl.currentPageIndicatorTintColor = UIColor.red
+        self.pageControl.isUserInteractionEnabled = false
+        
+        
+        let heightContraints = NSLayoutConstraint(item: pageControl, attribute:
+            .height, relatedBy: .equal, toItem: nil,
+                     attribute: NSLayoutAttribute.notAnAttribute, multiplier: 1.0,
+                     constant: 25)
+        
+        let bottomContraints = NSLayoutConstraint(item: pageControl, attribute:
+            .bottom, relatedBy: .equal, toItem: self,
+                     attribute: NSLayoutAttribute.bottom, multiplier: 1.0,
+                     constant: 0)
+        
+        let leftContraints = NSLayoutConstraint(item: pageControl, attribute:
+            .leadingMargin, relatedBy: .equal, toItem: self,
+                            attribute: .leadingMargin, multiplier: 1.0,
+                            constant: 0)
+        
+        let rightContraints = NSLayoutConstraint(item: pageControl, attribute:
+            .trailingMargin, relatedBy: .equal, toItem: self,
+                             attribute: .trailingMargin, multiplier: 1.0,
+                             constant: 0)
+        
+        
+        pageControl.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([heightContraints,rightContraints,leftContraints,bottomContraints])
+    }
+    
+    
+    func reloadData() {
+        if(dataSource != nil){
+            numberOfItems = (dataSource?.numberOfItems(viewPager: self))!
+        }
+        self.pageControl.numberOfPages = 2
+        
+        itemViews.removeAll()
+        for view in self.scrollView.subviews {
+            view.removeFromSuperview()
+        }
+        
+        DispatchQueue.main.async {
+            () -> Void in
+         
+            self.scrollView.contentSize = CGSize.init(width: self.scrollView.frame.width *  CGFloat(self.numberOfItems), height: self.scrollView.frame.height)
+            self.reloadViews(index: 0)
+        }
+    }
+    
+    func loadViewAtIndex(index:Int){
+        let view:UIView?
+        if(dataSource != nil){
+            view =  (dataSource?.viewAtIndex(viewPager: self, index: index, view: itemViews[index]))!
+        }else{
+            view = UIView()
+        }
+        
+        setFrameForView(view: view!, index: index);
+        
+        
+        
+        if(itemViews[index] == nil){
+            itemViews[index] = view
+            let tap = UITapGestureRecognizer(target: self, action:  #selector(self.handleTapSubView))
+            tap.numberOfTapsRequired = 1
+            
+//            if(view?.subviews.count > 3)
+//            {
+//                let tapLike = UITapGestureRecognizer(target: self, action:  #selector(self.like))
+//                tap.numberOfTapsRequired = 1
+//
+//                itemViews[index]!.subviews[3].addGestureRecognizer(tapLike)
+//                
+//                let tapaddCollection = UITapGestureRecognizer(target: self, action:  #selector(self.addCollection))
+//                tap.numberOfTapsRequired = 1
+//                
+//                itemViews[index]!.subviews[1].addGestureRecognizer(tapaddCollection)
+//            }
+            itemViews[index]!.addGestureRecognizer(tap)
+            scrollView.addSubview(itemViews[index]!)
+        }else{
+            itemViews[index] = view
+        }
+        
+    }
+  
+//    func like() {
+//    
+//        if(dataSource?.didSelectedLike != nil){
+//            dataSource?.didSelectedLike!(currentPosition)
+//        }
+//    }
+//    func addCollection() {
+//        
+//        if(dataSource?.didSelectedAddToCollection != nil){
+//            dataSource?.didSelectedAddToCollection!(currentPosition)
+//        }
+//    }
+    
+    @objc func handleTapSubView() {
+        if(dataSource?.didSelectedItem != nil){
+            dataSource?.didSelectedItem!(index: currentPosition)
+        }
+    }
+    
+    
+    func reloadViews(index:Int){
+        
+        for i in (index-1)...(index+1) {
+            if(i>=0 && i<numberOfItems){
+                loadViewAtIndex(index: i);
+            }
+        }
+        // print(scrollView.subviews.count)
+    }
+    
+    func setFrameForView(view:UIView,index:Int){
+        view.frame = CGRect(x: self.scrollView.frame.width*CGFloat(index), y: 0, width: self.scrollView.frame.width, height: self.scrollView.frame.height);
+    }
+}
+
+extension ViewPager:UIScrollViewDelegate{
+    
+    public func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+        
+        let pageNumber = round(scrollView.contentOffset.x / scrollView.frame.size.width)
+        
+        if pageNumber.isNaN == false {
+            pageControl.currentPage = Int(pageNumber)
+            currentPosition = pageControl.currentPage
+            reloadViews(index: Int(pageNumber));
+        }
+        
+        
+    }
+    
+    
+}
+
+extension ViewPager{
+    
+    
+    func animationNext(){
+//        NSTimer.scheduledTimerWithTimeInterval(2, target: self, selector: #selector(ViewPager.moveToNextPage), userInfo: nil, repeats: true)
+    }
+    func moveToNextPage (){
+        if(currentPosition <= numberOfItems && currentPosition > 0) {
+            scrollToPage(index: currentPosition)
+            currentPosition = currentPosition + 1
+            if currentPosition > numberOfItems {
+                currentPosition = 1
+            }
+        }
+    }
+    
+    func scrollToPage(index:Int) {
+        if(index <= numberOfItems && index > 0) {
+            let zIndex = index - 1
+            let iframe = CGRect(x: self.scrollView.frame.width*CGFloat(zIndex), y: 0, width: self.scrollView.frame.width, height: self.scrollView.frame.height);
+            scrollView.setContentOffset(iframe.origin, animated: true)
+            pageControl.currentPage = zIndex
+            reloadViews(index: zIndex)
+            currentPosition = index
+        }
+    }
+    
+}
+        
+        func subviewOfferImageSetUp() {
+            self.viewscrolling.dataSource = self
+            DispatchQueue.main.async {
+                self.ImagePageViewSetup()
+            }
+        }
+        
+        func ImagePageViewSetup() {
+            self.viewscrolling.scrollViewDidEndDecelerating(self.viewscrolling.scrollView)
+        }
 
 ============================================================================================================================
 
