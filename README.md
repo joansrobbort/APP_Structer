@@ -1,4 +1,8 @@
- let boolVal = UserDefaults.standard.value(forKey: "isFromLogin") as? Bool
+
+sleep(UInt32(0.5))
+
+
+let boolVal = UserDefaults.standard.value(forKey: "isFromLogin") as? Bool
         
         if boolVal != nil
         {
