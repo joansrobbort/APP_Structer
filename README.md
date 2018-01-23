@@ -1,4 +1,15 @@
+UIGestureRecognizerDelegate
 
+let tap: UITapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(self.dismissViewAddUser(Sender:)))
+        tap.delegate = self
+        ViewAddUser.addGestureRecognizer(tap)
+
+func dismissViewAddUser(Sender:UIGestureRecognizer) {
+         self.ViewAddUser.isHidden = true
+    }
+
+
+==========================================================================
 enum Font_Poppins : String {
     case Regular = "Poppins-Regular"
     case Light = "Poppins-Light"
