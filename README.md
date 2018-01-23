@@ -1,4 +1,40 @@
 
+enum Font_Poppins : String {
+    case Regular = "Poppins-Regular"
+    case Light = "Poppins-Light"
+    case Medium = "Poppins-Medium"
+    case Bold = "Poppins"
+    case Semibold = "Poppins-SemiBold"
+    case Lobster = "Lobster-Regular"
+}
+===========================================================================================================
+ let searchTextField: UITextField? = txtSearchbar.value(forKey: "searchField") as? UITextField
+        
+        txtSearchbar.setImage(UIImage(named: "search"), for: .search, state: .normal)
+        
+        if searchTextField!.responds(to: #selector(getter: UITextField.attributedPlaceholder)) {
+            let attributeDict = [NSForegroundColorAttributeName: UIColor.white]
+            searchTextField!.attributedPlaceholder = NSAttributedString(string: "SEARCH", attributes: attributeDict)
+        }
+//       txtSearchbar.
+        let cancelButtonAttributes = [NSForegroundColorAttributeName: UIColor.white]
+        UIBarButtonItem.appearance().setTitleTextAttributes(cancelButtonAttributes, for: .normal)
+            
+        
+        txtSearchbar.tintColor = UIColor.white
+        searchTextField?.textColor = UIColor.white
+        
+        let  font1 = UIFont(name: Font_Poppins.Regular.rawValue, size: 14.0)
+         searchTextField?.font = font1
+        txtSearchbar.delegate = self
+        self.ViewFilter.isHidden = true
+
+        view.setNeedsLayout()
+ 
+        let font = UIFont(name: Font_Poppins.Semibold.rawValue, size: 08.0)
+        SegmentFilter.setTitleTextAttributes([NSFontAttributeName: font ?? ""],for: UIControlState.normal)
+  
+================================================================================
 sleep(UInt32(0.5))
 
 
