@@ -1,908 +1,329 @@
+//
+//  Setting_ViewController.swift
+//  ClassPass
+//
+//  Created by vivek versatile on 11/02/17.
+//  Copyright © 2017 Versatile Techno MAC-2. All rights reserved.
+//
 
-enum SelectedScreen {
-    case Spending
-    case Transcation
-    case Category
-    case Account
-}
-
-protocol MultiSelectDelegate {
-    func didSelectDelete(_ currentScreen : SelectedScreen)
-    func didSelectEdit(_ currentScreen : SelectedScreen)
-    func didSelectDone(_ currentScreen : SelectedScreen)
-}
-
-protocol TimePeriodDelegate {
-    func didSelectTimePeriod(fromDate from_date : Date, to_date : Date)
-}
-
-
-class BaseViewController: UIViewController,UIActionSheetDelegate {
+import UIKit
+import MessageUI
+class Setting_ViewController: UIViewController,ServerCallDelegate,MFMailComposeViewControllerDelegate,UITableViewDelegate,UITableViewDataSource{
     
-    //MARK:- ViewController Outlet
-    @IBOutlet weak var lblweekly: UILabel!
-    @IBOutlet weak var btnTimePeriod: UIButton!
-    @IBOutlet weak var btnPrevious: UIButton!
-    @IBOutlet weak var btnNext: UIButton!
-    @IBOutlet weak var btnEdit: UIButton!
-    @IBOutlet weak var lblTimePeriod: UILabel!
-    @IBOutlet weak var lblselectedindex: UILabel!
-    @IBOutlet weak var btnAccount: UIButton!
-    @IBOutlet weak var btnMenu: UIButton!
-    @IBOutlet weak var ViewselectedIndex: UIView!
     
-    @IBOutlet weak var segmentControlMain: UISegmentedControl!
-    var HomeVC = SpendingVC()
-    @IBOutlet weak var containerSpending : UIView!
-    @IBOutlet weak var containerTranscation: UIView!
-    @IBOutlet weak var containerCategory: UIView!
-    @IBOutlet weak var containerAccount: UIView!
+    @IBOutlet weak var tblViewDiscription: UITableView!
+    @IBOutlet weak var txtTreamCondition: UITextView!
+    var sectingTag :Int = 100000
+    var headerTitles = [String]()
+    var ArrySetting = [SettingBean]()
     
-    var currentScreen : SelectedScreen = SelectedScreen.Spending
-    var SelectedViewDetaile = Bool()
-    var selectedCatType : CategoryType!
-    var selectedCatID : Int = 0
+    @IBOutlet weak var webViewPrivacyPolicy: UIWebView!
+    @IBOutlet weak var CoomunitionView: UIView!
+    @IBOutlet weak var TermContionView: UIView!
+    @IBOutlet weak var PrivacyPolicyView: UIView!
+    @IBOutlet weak var HelpCenterView: UIView!
+    @IBOutlet weak var btnLogout: UIButton!
+    @IBOutlet weak var btnMenubar: UIButton!
     
-    var delegateMultiSelect : MultiSelectDelegate?
-    var timePeriodDelegate : TimePeriodDelegate?
-    
-    private var Currentweek = Int()
-    private var Currentmoth = Int()
-    private var CurrentYear = Int()
-    
-    var startDate = Date()
-    var endDate = Date()
-
-    var currentTimePeriod = TimePeriod.Monthly
-    
-    //MARK:- ViewController LifeCycle
     override func viewDidLoad() {
         super.viewDidLoad()
-        
-        setmonthFromCurrentmonth(0)
-        
-        self.ViewselectedIndex.isHidden = true
-        //SegmentViewController
-        let titleTextAttributes = [NSForegroundColorAttributeName: UIColor.white]
-        segmentControlMain.setTitleTextAttributes(titleTextAttributes, for: .selected)
-        segmentControlMain.setTitleTextAttributes(titleTextAttributes, for: .normal)
-
-
-    
-        setupSpeandingView()
-        
-        self.btnNext.addTarget(self, action: #selector(TapTobtnDateNext), for: .touchUpInside)
-        self.btnPrevious.addTarget(self, action: #selector(TapTobtnPreviews), for: .touchUpInside)
-    }
-    
-    //MARK:- Other Method
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
+        self.CoomunitionView.isHidden = true
+        self.TermContionView.isHidden = true
+        self.HelpCenterView.isHidden = true
+        self.PrivacyPolicyView.isHidden = true
+        self.btnLogout.CircleRoundsuiButton()
+        self.webViewPrivacyPolicy.backgroundColor = UIColor.white
+        btnMenubar.addTarget(self.revealViewController(), action: #selector(self.revealViewController().revealToggle(_:)), for: .touchUpInside)
+        self.revealViewController().shouldUseFrontViewOverlay = true
+        self.view.addGestureRecognizer(self.revealViewController().tapGestureRecognizer())
+        if !MFMailComposeViewController.canSendMail() {
+            print("Mail services are not available")
+            return
+        }
+        webViewPrivacyPolicy.backgroundColor = UIColor.white
     }
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-         let activeUser = UserManager.getActiveUser()
+        tblViewDiscription.delegate = self
+        tblViewDiscription.dataSource = self
+        tblViewDiscription.estimatedRowHeight = 100.0
+        tblViewDiscription.rowHeight = UITableViewAutomaticDimension
         
-        if activeUser?.settings?.time_period == TimePeriod.Monthly.rawValue {
-            self.currentTimePeriod = .Monthly
-            print("Monthly")
-            self.lblweekly.text = "Monthly"
-           
-            self.Currentmoth = 0
-            self.setmonthFromCurrentmonth(self.Currentmoth)
-        }
-        else if  activeUser?.settings?.time_period == TimePeriod.Weekly.rawValue {
-            self.currentTimePeriod = .Weekly
-            print("weekly")
-            self.lblweekly.text = "weekly"
-            self.Currentweek = 0
-            self.setWeekFromCurrentWeek(self.Currentweek)
-        }
-        else if  activeUser?.settings?.time_period == TimePeriod.Yearly.rawValue{
-            self.currentTimePeriod = .Yearly
-            print("yearly")
-            self.lblweekly.text = "yearly"
-            self.CurrentYear = 0
-            self.setYearFromCurrentYear(self.CurrentYear)
-        }
     }
-    //MARK:- Uibutton Action
-    @IBAction func segmentValueChanged(_ sender: UISegmentedControl) {
-        if sender.selectedSegmentIndex == 0 {
-            setupSpeandingView()
-        }
-        else if sender.selectedSegmentIndex == 1 {
-            setupTransactionView()
-        }
-        else if sender.selectedSegmentIndex == 2 {
-            setupCategoryView()
-        }
-        else if sender.selectedSegmentIndex == 3 {
-            setupAccountView()
-        }
-    }
-  
 
-    func setupSpeandingView() {
-        currentScreen = SelectedScreen.Spending
+    //MARK :- EMail
+    func configuredMailComposeViewController(){
         
-        containerSpending.isHidden = false
-        containerTranscation.isHidden = true
-        containerCategory.isHidden = true
-        containerAccount.isHidden = true
-          self.ViewselectedIndex.isHidden = true
-        btnTimePeriod.isHidden = false
-        btnPrevious.isHidden = false
-        btnNext.isHidden = false
-        lblTimePeriod.isHidden = false
-        btnAccount.isHidden = false
-        btnMenu.isHidden = false
-        
-        btnTimePeriod.setImage(#imageLiteral(resourceName: "date"), for: .normal)
-        btnAccount.setImage(#imageLiteral(resourceName: "user"), for: .normal)
-        
-        for aVC in self.childViewControllers {
-            if let vcSpending = aVC as? SpendingVC {
-                vcSpending.viewDidAppear(true)
-                break
-            }
-        }
-    }
-    
-    func setupTransactionView() {
-        currentScreen = SelectedScreen.Transcation
-        
-        containerSpending.isHidden = true
-        containerTranscation.isHidden = false
-        containerCategory.isHidden = true
-        containerAccount.isHidden = true
-        
-        
-        btnTimePeriod.setImage(#imageLiteral(resourceName: "date"), for: .normal)
-         btnAccount.setImage(#imageLiteral(resourceName: "add"), for: .normal)
-          self.ViewselectedIndex.isHidden = true
-        btnTimePeriod.isHidden = false
-        btnPrevious.isHidden = false
-        btnNext.isHidden = false
-        lblTimePeriod.isHidden = false
-        btnAccount.isHidden = false // img
-        btnMenu.isHidden = false
-        
-        self.selectedCatID = 0
-        
-        for aVC in self.childViewControllers {
-            if let vcTransaction = aVC as? TransactionVC {
-                vcTransaction.viewDidAppear(true)
-                vcTransaction.DidSelectedRefresh()
-                break
-            }
-        }
-    }
-    
-    func setupCategoryView() {
-        currentScreen = SelectedScreen.Category
-        
-        containerSpending.isHidden = true
-        containerTranscation.isHidden = true
-        containerCategory.isHidden = false
-        containerAccount.isHidden = true
-        self.ViewselectedIndex.isHidden = true
-        btnTimePeriod.setImage(#imageLiteral(resourceName: "edit"), for: .normal)
-        btnAccount.setImage(#imageLiteral(resourceName: "add"), for: .normal)
-        
-        btnTimePeriod.isHidden = false // img change baaki.
-        btnPrevious.isHidden = true
-        btnNext.isHidden = true
-        lblTimePeriod.isHidden = true
-        btnAccount.isHidden = false // img
-        btnMenu.isHidden = false
-        
-        for aVC in self.childViewControllers {
-            if let vcCategory = aVC as? CategoryVC {
-                vcCategory.viewDidAppear(true)
-                vcCategory.DidSelectedRefresh()
-                break
-            }
-        }
-    }
-    
-    func setupAccountView() {
-        currentScreen = SelectedScreen.Account
-        self.ViewselectedIndex.isHidden = true
-        containerSpending.isHidden = true
-        containerTranscation.isHidden = true
-        containerCategory.isHidden = true
-        containerAccount.isHidden = false
-        
-        btnTimePeriod.setImage(#imageLiteral(resourceName: "edit"), for: .normal)
-        btnAccount.setImage(#imageLiteral(resourceName: "add"), for: .normal)
-
-        btnTimePeriod.isHidden = false // img change baaki.
-        btnPrevious.isHidden = true
-        btnNext.isHidden = true
-        lblTimePeriod.isHidden = true
-        btnAccount.isHidden = false // img
-        btnMenu.isHidden = false
-        
-        for aVC in self.childViewControllers {
-            if let vcAccount = aVC as? AccountVC {
-                vcAccount.viewDidAppear(true)
-                vcAccount.DidSelectedRefresh()
-                break
-            }
-        }
-    }
-    
-    // MARK: - Button Tap
-    @IBAction func TapTobtnDelete(_ sender: Any) {
-        if delegateMultiSelect != nil {
-            delegateMultiSelect?.didSelectDelete(currentScreen)
-        }
-    }
-    
-    @IBAction func TapToBtnedit(_ sender: Any) {
-        if delegateMultiSelect != nil {
-            delegateMultiSelect?.didSelectEdit(currentScreen)
-        }
-    }
-    
-    @IBAction func TapTobtnDone(_ sender: Any) {
-        if delegateMultiSelect != nil {
-            delegateMultiSelect?.didSelectDone(currentScreen)
-        }
-    }
-    
-    @IBAction func didTapBtnTimePeriod(_ sender: UIButton) {
-        if currentScreen == .Spending {
-            // spending aacount button click
-            self.ActionSheetTimePireod()
-            //HomeVC.setmonthFromCurrentmonth()
+        if !MFMailComposeViewController.canSendMail() {
             
+            let alert = UIAlertController(title: "Alert!", message: "Please Add your mailId In Your Device", preferredStyle: UIAlertControllerStyle.alert)
             
-        }
-        else if currentScreen == .Transcation {
-            // Open Add transcation screen
-            self.ActionSheetTimePireod()
-        }
-        else if currentScreen == .Category {
-            // Open Add category screen
-        }
-        else if currentScreen == .Account {
-            // open add account screen.
-        }
-    }
-    
-    @IBAction func didTapBtnAccount(_ sender: UIButton) {
-        // Account as well as add button.
-        
-        if currentScreen == .Spending {
-            print("spending aacount button click")
+            alert.addAction(UIAlertAction(title: "OK", style: .default, handler: { (action : UIAlertAction) in
+                _ = self.navigationController?.popViewController(animated:true)
+            }))
             
-            let StoryBord = UIStoryboard(name:"Main", bundle: nil)
-            if let UserVc = StoryBord.instantiateViewController(withIdentifier: "PersonalAccountVC") as? PersonalAccountVC {
-                
-                self.view.addSubview(UserVc.view)
-                self.addChildViewController(UserVc)
-            }
-
-        }
-        else if currentScreen == .Transcation {
-            print("Open Add transcation screen")
-            
-            if let AccontdetaileVc = storyboard?.instantiateViewController(withIdentifier: "AccountDetailVC")as? AccountDetailVC{
-                self.navigationController?.pushViewController(AccontdetaileVc, animated: true)
-            }
-        }
-        else if currentScreen == .Category {
-            print("Open Add category screen")
-            
-            let CateGoryDetaileVc = storyboard?.instantiateViewController(withIdentifier: "CategoryDetaileViewController")as! CategoryDetaileViewController
-            CateGoryDetaileVc.catType = self.selectedCatType
-            self.navigationController?.pushViewController(CateGoryDetaileVc, animated: true)
-        }
-        else if currentScreen == .Account {
-            print("Open add account screen.")
-            let CateGoryDetaileVc = storyboard?.instantiateViewController(withIdentifier: "CategoryDetaileViewController")as! CategoryDetaileViewController
-             CateGoryDetaileVc.SelectedViewDetaile = true
-            self.navigationController?.pushViewController(CateGoryDetaileVc, animated: true)
-        }
-        
-    }
-    
-    @IBAction func didTapBtnMenu(_ sender: UIButton) {
-       // menu view add subview.
-        let StoryBord = UIStoryboard(name:"Main", bundle: nil)
-        if let menuvc = StoryBord.instantiateViewController(withIdentifier: "MenuVC") as? MenuVC {
-            
-                self.view.addSubview(menuvc.view)
-                self.addChildViewController(menuvc)
-        }
-        
-    }
-    //MARK:- ActionSheet method
-    func ActionSheetTimePireod(){
-        let actionSheetForChangeView: UIAlertController = UIAlertController(title: "SHOW SPENDING", message: nil, preferredStyle: .actionSheet)
-        
-        let cancelActionButton = UIAlertAction(title: "Cancel", style: .cancel) { _ in
-            print("Cancel")
-        }
-        actionSheetForChangeView.addAction(cancelActionButton)
-        
-        let saveActionButton = UIAlertAction(title: "Weekly", style: .default)
-        { _ in
-            self.currentTimePeriod = .Weekly
-            self.Currentweek = 0
-           self.setWeekFromCurrentWeek(self.Currentweek)
-            print("Weekly")
-             self.lblweekly.text = "Weekly"
-            let activeUser = UserManager.getActiveUser()
-            let copyUser = UserManager.copySelf(activeUser!)
-            copyUser?.settings?.time_period = TimePeriod.Weekly.rawValue
-            
-            let result = UserManager.updateUser(copyUser!)
-            
-            if result.success == false {
-                self.showAlert("Alert!", message: result.message)
-            }
-        }
-        actionSheetForChangeView.addAction(saveActionButton)
-        
-        let deleteActionButton = UIAlertAction(title: "Monthly", style: .default)
-        { _ in
-            self.currentTimePeriod = .Monthly
-            print("Monthly")
-             self.lblweekly.text = "Monthly"
-            self.Currentmoth = 0
-            self.setmonthFromCurrentmonth(self.Currentmoth)
-            
-            
-            let activeUser = UserManager.getActiveUser()
-            let copyUser = UserManager.copySelf(activeUser!)
-            copyUser?.settings?.time_period = TimePeriod.Monthly.rawValue
-            
-            let result = UserManager.updateUser(copyUser!)
-            
-            if result.success == false {
-                self.showAlert("Alert!", message: result.message)
-            }
-            
-        }
-        actionSheetForChangeView.addAction(deleteActionButton)
-        
-        let deleteActionButton1 = UIAlertAction(title: "Yearly", style: .default)
-        { _ in
-            self.currentTimePeriod = .Yearly
-            self.CurrentYear = 0
-            self.setYearFromCurrentYear(self.CurrentYear)
-            print("Yearly")
-             self.lblweekly.text = "Yearly"
-            
-            
-            let activeUser = UserManager.getActiveUser()
-            let copyUser = UserManager.copySelf(activeUser!)
-            copyUser?.settings?.time_period = TimePeriod.Yearly.rawValue
-            
-            let result = UserManager.updateUser(copyUser!)
-            
-            if result.success == false {
-                self.showAlert("Alert!", message: result.message)
-            }
-        }
-        actionSheetForChangeView.addAction(deleteActionButton1)
-        self.present(actionSheetForChangeView, animated: true, completion: nil)
-    }
-    
-    // MARK: - Navigation
-    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-
-    }
-    
-
-    
-    
-    //MARK:- UIbutton Action
-    func TapTobtnDateNext(){
-        
-        if self.currentTimePeriod == .Monthly {
-            Currentmoth += 1
-            self.setmonthFromCurrentmonth(Currentmoth)
-        }
-        else if self.currentTimePeriod == .Weekly {
-            Currentweek += 1
-            self.setWeekFromCurrentWeek(Currentweek)
-        }
-        else if self.currentTimePeriod == .Yearly {
-            CurrentYear += 1
-            self.setYearFromCurrentYear(CurrentYear)
-        }
-
-    }
-    func TapTobtnPreviews(){
-        
-        if self.currentTimePeriod == .Monthly {
-            Currentmoth -= 1
-            self.setmonthFromCurrentmonth(Currentmoth)
-        }
-        else if self.currentTimePeriod == .Weekly {
-            Currentweek -= 1
-            self.setWeekFromCurrentWeek(Currentweek)
-        }
-        else if self.currentTimePeriod == .Yearly {
-            CurrentYear -= 1
-            self.setYearFromCurrentYear(CurrentYear)
-        }
-    }
-    
-    
-    func getLocalTimeInterval() -> TimeInterval {
-        let sourceTimeZone = TimeZone(abbreviation: "GMT")!
-        let destinationTimeZone = TimeZone(abbreviation: "\(TimeZone.current.abbreviation()!)")!
-        
-        let sourceOffset = sourceTimeZone.secondsFromGMT()
-        let destinationOffset = destinationTimeZone.secondsFromGMT()
-        
-        let timeInterval : TimeInterval = TimeInterval(destinationOffset - sourceOffset)
-        return timeInterval
-    }
-    
-    func getMonthDates(_ newDate : Date) {
-        let calendar = Calendar.current
-        
-        //Start Date of Month.
-        let components = calendar.dateComponents(([.year, .month]), from: newDate)
-        let StarofmonthTmp = calendar.date(from: components)
-        let Starofmonth = StarofmonthTmp?.addingTimeInterval(getLocalTimeInterval())
-        
-        //End Date of Month.
-        let comps2 = NSDateComponents()
-        comps2.month = 1
-        comps2.second = -60
-        let endofmonth = calendar.date(byAdding: comps2 as DateComponents, to: Starofmonth!)
-        
-        //Settings.
-        self.startDate = Starofmonth!
-        self.endDate = endofmonth!
-        if timePeriodDelegate != nil {
-            timePeriodDelegate?.didSelectTimePeriod(fromDate: Starofmonth!, to_date: endofmonth!)
-        }
-    }
-   
-     //MARK:-
-    func setmonthFromCurrentmonth(_ monthDifference: Int) {
-        let date = Date()
-        let mycalendar = Calendar.current
-        var myComponents: DateComponents? = mycalendar.dateComponents([.day, .month, .year], from: date)
-        let newDate = mycalendar.date(byAdding: (.month), value: monthDifference, to: Date())
-        let componentsNewDate: DateComponents? = mycalendar.dateComponents([.month, .year], from: newDate!)
-        
-        
-        let dateFormatter = DateFormatter()
-        var monthString: String = ""
-        if componentsNewDate?.year == myComponents?.year {
-            dateFormatter.dateFormat = "MMMM"
-            monthString = dateFormatter.string(from: newDate!).capitalized
-            print(monthString)
-            print(newDate!)
-        }
-        else {
-            dateFormatter.dateFormat = "MMMM yyyy"
-            monthString = dateFormatter.string(from: newDate!).capitalized
-            print(monthString)
-            print(newDate!)
-        }
-        self.lblTimePeriod.text = monthString
-        
-        getMonthDates(newDate!) // for query in database.
-    }
-    
-    func setWeekFromCurrentWeek(_ weekDifference: Int) {
-        let totalDaysToSubtractOrAdd: Int = weekDifference * 7
-        
-        //For Start Day
-        let mycalendar = Calendar.current
-        var compsToday: DateComponents = mycalendar.dateComponents([.day, .month, .year, .weekday, .hour, .minute, .second], from: Date())
-
-        compsToday.weekday = 2
-        compsToday.day = compsToday.day! + totalDaysToSubtractOrAdd
-        compsToday.month = compsToday.month!
-        compsToday.year = compsToday.year!
-        compsToday.hour = 0
-        compsToday.minute = 0
-        compsToday.second = 1
-        
-        //For End Date from Start Date.
-        let startDateTmp = mycalendar.date(from: compsToday)
-        let theStartDate = startDateTmp?.addingTimeInterval(getLocalTimeInterval())
-        
-        var compsEndDate: DateComponents = DateComponents()
-        compsEndDate.day = 7
-        compsEndDate.second = -60
-        let theEndDate = mycalendar.date(byAdding: compsEndDate, to: theStartDate!)
-        
-        //Display in label:-
-        let dateFormatter11 = DateFormatter()
-        dateFormatter11.dateFormat = "dd MMM"
-        let firstDateOfWeekstr: String = dateFormatter11.string(from: theStartDate!).capitalized
-        let lastDateOfWeekstr: String = dateFormatter11.string(from: theEndDate!).capitalized
-        self.lblTimePeriod.text = firstDateOfWeekstr + " - " + lastDateOfWeekstr
-        
-        //Settings.
-        self.startDate = theStartDate!
-        self.endDate = theEndDate!
-        if timePeriodDelegate != nil {
-            timePeriodDelegate?.didSelectTimePeriod(fromDate: self.startDate, to_date: self.endDate)
-        }
-    }
-    
-    
-    func setYearFromCurrentYear(_ YearDifference:Int){
-        let Mydate = Date()
-        let mycalendar = Calendar.current
-        
-        //Start Date of the year.
-        var myComponents: DateComponents = mycalendar.dateComponents(([.year, .month, .weekOfYear]), from: Mydate)
-        let theYear: Int? = (myComponents.year)! + YearDifference
-        let StartDate = "01-01-\(String(theYear!)) 00:00:01"
-        let dateFormatter1 = DateFormatter()
-        dateFormatter1.dateFormat = "dd-MM-yyyy HH:mm:ss"
-        let firstDateyearTmp : Date = dateFormatter1.date(from:StartDate)!
-        let firstDateyear : Date = firstDateyearTmp.addingTimeInterval(getLocalTimeInterval())
-        
-        //Enda date of the year.
-        let lastDate = "31-12-\(String(theYear!)) 23:59:59"
-        let dateFormatter2 = DateFormatter()
-        dateFormatter2.dateFormat = "dd-MM-yyyy HH:mm:ss"
-        let lastDateyearTmp :Date = dateFormatter2.date(from:lastDate)!
-        let lastDateyear :Date = lastDateyearTmp.addingTimeInterval(getLocalTimeInterval())
-
-        //Settings.
-        self.lblTimePeriod.text = String(describing: theYear!)
-        self.startDate = firstDateyear
-        self.endDate = lastDateyear
-        if timePeriodDelegate != nil {
-        timePeriodDelegate?.didSelectTimePeriod(fromDate: startDate, to_date: endDate)
-        }
-        
-    }
-}
-======================******************===========================*************************++++++++++++++++++++++++++
-
-
-class TransactionVC: UIViewController,UITableViewDelegate,UITableViewDataSource,MultiSelectDelegate, TimePeriodDelegate {
-    //MARK:- ViewController Outlet
-    
-    @IBOutlet weak var viewAddtransaction: UIView!
-    @IBOutlet weak var tblViewTransaction: UITableView!
-    @IBOutlet weak var lblIncomeAmout: UILabel!
-    @IBOutlet weak var lblExpenceAmount: UILabel!
-    @IBOutlet weak var lblAccountPersont: UILabel!
-    var StrCurrency = ""
-    var SelectTypeExpence : CategoryType! = .Expense
-    var arrTransactions = [Transaction]()
-    var baseVC : BaseViewController!
-    var multiselectMode = false
-    var longPressRecognizer = UILongPressGestureRecognizer()
-    
-        var activeUser = User()
-    
-    private var totalIncome : Double = 0.0
-    private var totalExpense : Double = 0.0
-    var selectTotalCount = Int()
-    //MARK:- ViewController LifeCycle
-    override func viewDidLoad() {
-        super.viewDidLoad()
-    //LongPress Gesture
-    longPressRecognizer = UILongPressGestureRecognizer(target: self, action: #selector(longPress))
-        self.tblViewTransaction.addGestureRecognizer(longPressRecognizer)
-        
-        NotificationCenter.default.addObserver(self, selector: #selector(self.updateTranscationList), name: NSNotification.Name(kUserIDChangedNotification), object: nil)
-    }
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        self.viewAddtransaction.isHidden = true
-        self.viewAddtransaction.CircleRoundsView()
-        
-        tblViewTransaction.estimatedRowHeight = 100.0
-        tblViewTransaction.rowHeight = UITableViewAutomaticDimension
-        //CurrenySymbol get
-        if let cSymbol = Pref.getObjectForKey(KCurrecySymbol) as? String {
-            StrCurrency = cSymbol
+            self.present(alert, animated: true, completion: nil)
+            return
         } else {
-            StrCurrency = "₹"
-        }
-        print(StrCurrency)
-    }
-    
-    override func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
-        
-        
-        baseVC = self.parent as! BaseViewController
-        baseVC.timePeriodDelegate = self
-        
-        print(Date().getStartDateOfMonth(Date()))        
-        updateTranscationList()
-    }
-    
-    func updateTranscationList() {
-        arrTransactions.removeAll()
-        if arrTransactions.count > 0 {
-           self.viewAddtransaction.isHidden = true
-            self.tblViewTransaction.separatorStyle = UITableViewCellSeparatorStyle.singleLine
-        }
-        else{
-            self.viewAddtransaction.isHidden = false
-            self.tblViewTransaction.separatorStyle = UITableViewCellSeparatorStyle.none
+            let composeVC = MFMailComposeViewController()
+            composeVC.mailComposeDelegate = self
+            composeVC.setToRecipients(["info@o2class.com"])
+            composeVC.setSubject("")
+            composeVC.setMessageBody("", isHTML:false)
+            self.present(composeVC, animated: true, completion: nil)
         }
         
-        activeUser = UserManager.getActiveUser()!
-        self.lblAccountPersont.text = activeUser.user_name
-        if let result = TransactionManager.getTransactions(fromDate: baseVC.startDate,
-                                                           toDate: baseVC.endDate,
-                                                           catID: baseVC.selectedCatID,
-                                                           userID: (activeUser.user_id)) {
-            arrTransactions = result as! [Transaction]
-            tblViewTransaction.reloadData()
-            if result.count > 0 || arrTransactions.count > 0{
-                self.viewAddtransaction.isHidden = true
-                self.tblViewTransaction.separatorStyle = UITableViewCellSeparatorStyle.singleLine
-                
-            }
-            else{
-                self.viewAddtransaction.isHidden = false
-                self.tblViewTransaction.separatorStyle = UITableViewCellSeparatorStyle.none
-            }
-            
-        }
-       
-        tblViewTransaction.reloadData()
-        
-        totalIncome = 0.0
-        totalExpense = 0.0
-        for aTrans in arrTransactions {
-            if aTrans.category_type == CategoryType.Income.rawValue {
-                // label Color Green
-                totalIncome += aTrans.amount
-            } else {
-                // label Color red
-                totalExpense += aTrans.amount
-            }
-        }
-        
-        lblExpenceAmount.text = StrCurrency + " \(totalExpense)"
-        lblIncomeAmout.text = StrCurrency + " \(totalIncome)"
-    }
-    
-    
-    //MARK:- LongPress gestur
-    func longPress(longPressGestureRecognizer: UILongPressGestureRecognizer) {
-        
-        if longPressGestureRecognizer.state == UIGestureRecognizerState.began {
-            
-            let touchPoint = longPressGestureRecognizer.location(in: self.tblViewTransaction)
-            if let idxPath = tblViewTransaction.indexPathForRow(at: touchPoint) {
-                baseVC.delegateMultiSelect = self
-                tblViewTransaction.allowsMultipleSelection = true
-                
-                multiselectMode = true
-                tblViewTransaction.reloadData()
-                
-                let tttt = DispatchTime.now() + 0.5
-                DispatchQueue.main.asyncAfter(deadline: tttt, execute: {
-                    self.tblViewTransaction.selectRow(at: idxPath, animated: false, scrollPosition: .none)
-                    self.baseVC.ViewselectedIndex.isHidden = false
-                })
-            }
-            else{
-              self.baseVC.ViewselectedIndex.isHidden = true
-            }
-            self.tblViewTransaction.removeGestureRecognizer(longPressGestureRecognizer)
-        }
-    }
-
-    //MARK:- Uibutton Action
-    
-    @IBAction func TapTobtnPrevies(_ sender: Any) {
-       baseVC.TapTobtnPreviews()
-    }
-    
-    @IBAction func TapTobtnNext(_ sender: Any) {
-       baseVC.TapTobtnDateNext()
-    }
-  
-    @IBAction func TapTobtnDownload(_ sender: Any) {
         
     }
-    @IBAction func TapTobtnUser(_ sender: Any) {
-        let StoryBord = UIStoryboard(name:"Main", bundle: nil)
-        
-        if let UserVC = StoryBord.instantiateViewController(withIdentifier: "PersonalAccountVC") as? PersonalAccountVC {
-            if let basevc = self.parent as? BaseViewController{
-                basevc.view.addSubview(UserVC.view)
-                basevc.addChildViewController(UserVC)
-                UserVC.view.layoutIfNeeded()
-            }
-        }
-
+    func mailComposeController(_ controller: MFMailComposeViewController, didFinishWith result: MFMailComposeResult, error: Error?) {
+        controller.dismiss(animated: true, completion: nil)
     }
-    @IBAction func TapTobtnFilter(_ sender: Any) {
-        let StoryBord = UIStoryboard(name:"Main", bundle: nil)
-        
-        if let filtevc = StoryBord.instantiateViewController(withIdentifier: "FilterVC") as? FilterVC {
-            if let basevc = self.parent as? BaseViewController{
-                basevc.view.addSubview(filtevc.view)
-                basevc.addChildViewController(filtevc)
-            }
-        }
-    }
-    
-    //MARK:- uitableView Method
+    //MARK :- TableView Method
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
         return UITableViewAutomaticDimension
     }
-
+    
+    func numberOfSections(in tableView: UITableView) -> Int {
+        return ArrySetting.count
+    }
+    func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
+        return 40
+        
+    }
+    func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView?
+    {
+        let viewHeaderFrame = CGRect(x: 0, y: 0, width: tableView.bounds.size.width, height: 40)
+        let headerView = UIView(frame: viewHeaderFrame)
+        headerView.backgroundColor =  UIColor(red: 249.0/255.0, green: 107.0/255.0, blue: 49.0/255.0, alpha: 1.0)
+        
+        let Button = UIButton(frame: CGRect(x: 0, y: 0, width: tableView.bounds.size.width, height: 30))
+        let Bean = ArrySetting [section]
+        Button.setTitle(Bean.headerName, for: .normal)
+        Button.addTarget(self, action: #selector(TapToHide(_:)), for: .touchUpInside)
+        Button.tag = section
+        
+        let frameSeprator = CGRect(x: 0, y: viewHeaderFrame.size.height - 1, width: viewHeaderFrame.size.width, height: 1)
+        let lblSaprator = UILabel(frame: frameSeprator)
+        lblSaprator.backgroundColor = UIColor.white
+        
+        headerView.addSubview(lblSaprator)
+        headerView.addSubview(Button)
+        headerView.bringSubview(toFront: lblSaprator)
+        
+        
+        
+        return headerView
+    }
+    func TapToHide(_ sender:UIButton){
+        
+        if sectingTag == sender.tag {
+            sectingTag =  1000000000
+        }else{
+            sectingTag = sender.tag
+//            print(sectingTag)
+//            print(sender.tag)
+        }
+        tblViewDiscription.reloadData()
+        
+    }
+    func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
+        
+        if section < ArrySetting.count {
+            let Bean = ArrySetting[section]
+            return Bean.headerName
+        }
+        
+        return nil
+    }
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return arrTransactions.count
+        
+        if sectingTag == section
+            
+        {
+           // print(section)
+            return 1
+            
+        }
+        return 0
     }
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell: TransactionCell = tableView.dequeueReusableCell(withIdentifier: "Cell", for: indexPath) as! TransactionCell
-        
-        let aTransaction = arrTransactions[indexPath.row]
-        cell.lblAmount.text = StrCurrency + " \(aTransaction.amount)"
-        cell.lblTrancationname.text =  "\(aTransaction.note)"
-        let aCat = CategoryManager.getCategoryByID(aTransaction.category_id)
-        cell.imgtransaction.image = UIImage(named: ("Green"  + (aCat?.category_icon)!))
-        
-        let date = aTransaction.date
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "EEEE, dd MMM yyyy"
-        cell.lblDate.text = dateFormatter.string(from: date as Date)
-        
-       
-        
-        if aTransaction.category_type == CategoryType.Income.rawValue {
-            // label Color Green
-          cell.lblAmount.textColor = UIColor(red:23/255.0, green:113/255.0, blue:40/255.0, alpha: 1.0)
-        } else {
-            // label Color red
-            cell.lblAmount.textColor = UIColor(red:239/255.0, green:83/255.0, blue:80/255.0, alpha: 1.0)
-        }
-        
-        if multiselectMode {
-            cell.selectionStyle = UITableViewCellSelectionStyle.gray
-        }else{
-            //self.TblViewTrasaction.addGestureRecognizer(longPressRecognizer)
-            cell.selectionStyle = UITableViewCellSelectionStyle.none
-        }
-        
+        let cell: helpCell = tableView.dequeueReusableCell(withIdentifier: "Cell")as! helpCell
+        var Bean = SettingBean()
+        Bean = ArrySetting[indexPath.section]
+        cell.lblDiscription.text = Bean.Description
         return cell
+    }
+    //MARK :- UIButton action
+    @IBAction func TapToPrivacyPolicy(_ sender: Any) {
+        self.view.bringSubview(toFront: PrivacyPolicyView)
+        self.PrivacyPolicyView.isHidden = false
+        self.HelpCenterView.isHidden = true
+        self.TermContionView.isHidden = true
+        self.CoomunitionView.isHidden = true
+        self.PrivacyPolicy()
+        
         
     }
-    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+    @IBAction func TapToTermToCondition(_ sender: Any) {
         
-      
-         self.selectTotalCount += 1
-          baseVC.lblselectedindex.text = String(selectTotalCount) + " Selected"
+        self.view.bringSubview(toFront: TermContionView)
+        self.TermContionView.isHidden = false
+        self.PrivacyPolicyView.isHidden = true
+        self.HelpCenterView.isHidden = false
+        self.CoomunitionView.isHidden = true
+        self.TrumCondition()
+    }
+    @IBAction func TapToHelpCenter(_ sender: Any) {
+        self.view.bringSubview(toFront: HelpCenterView)
+        self.HelpCenterView.isHidden = false
+        self.PrivacyPolicyView.isHidden = true
+        self.TermContionView.isHidden = true
+        self.CoomunitionView.isHidden = true
+        self.HelpCenterURl()
         
-        if multiselectMode {
-            if (self.tblViewTransaction.indexPathsForSelectedRows?.count)! == 1 {
-                baseVC.btnEdit.isHidden = false
-                self.tblViewTransaction.addGestureRecognizer(longPressRecognizer)
-            } else{
-                self.baseVC.btnEdit.isHidden = true
-            }
-            return
-        }
-        let AccountVc = storyboard?.instantiateViewController(withIdentifier: "AccountDetailVC")as! AccountDetailVC
-        AccountVc.selectedbtnDelete = true
-        if let Bean = arrTransactions[indexPath.row] as? Transaction {
-            AccountVc.TranBean = Bean
-        }
-        self.navigationController?.pushViewController(AccountVc, animated: true)
+    }
+    @IBAction func TapToEmail(_ sender: Any) {
+        self.configuredMailComposeViewController()
+    }
+    @IBAction func TapToContect(_ sender: Any) {
+        
+        //        if let url = NSURL(string: "tel://\(96597433049)"), UIApplication.shared.canOpenURL(url as URL) {
+        //            UIApplication.shared.openURL(url as URL)
+        //        }
+        //          else {
+        //            let alert = UIAlertController(title: "Alert!", message: "Your device doesn’t support calling.", preferredStyle: UIAlertControllerStyle.alert)
+        //                    alert.addAction(UIAlertAction(title: "OK", style: UIAlertActionStyle.default, handler: nil))
+        //                    self.present(alert, animated: true, completion: nil)
+        //                }
+    
+    }
+    @IBAction func TapToCommunity(_ sender: Any) {
+        self.view.bringSubview(toFront: CoomunitionView)
+        self.CoomunitionView.isHidden = false
+        self.PrivacyPolicyView.isHidden = true
+        self.TermContionView.isHidden = true
+        
+        
+    }
+    @IBAction func BackToHelpCenter(_ sender: Any) {
+        
+        self.HelpCenterView.isHidden = true
+        self.PrivacyPolicyView.isHidden = true
+        self.TermContionView.isHidden = true
+        self.CoomunitionView.isHidden = true
+        
+        
+    }
+    @IBAction func TapToLogOut(_ sender: UIButton) {
+        self.SavePlan()
+    }
+    //MArk:- GETPRIVACY & Policy
+    func HelpCenterURl(){
+        SVProgressHUD.show(withStatus: "")
+        ServerCall.sharedInstance.requestWithURL(.http_GET, urlString: URL_HELPCENTER, delegate: self, name: .helpCenter)
     }
     
-    func tableView(_ tableView: UITableView, didDeselectRowAt indexPath: IndexPath) {
-        
-        self.selectTotalCount -= 1
-        baseVC.lblselectedindex.text = String(selectTotalCount) + " Selected"
-        
-        if multiselectMode {
-            if tableView.indexPathsForSelectedRows == nil {
-                multiselectMode = false
-                tblViewTransaction.allowsMultipleSelection = false
-                baseVC.ViewselectedIndex.isHidden = true
-                tblViewTransaction.reloadData()
-                self.tblViewTransaction.addGestureRecognizer(longPressRecognizer)
-                
-            }
+    func PrivacyPolicy(){
+        let req = URLRequest(url: URL(string: "http://o2class.com/privacy-policy.php")!)
+        webViewPrivacyPolicy.loadRequest(req)
+    }
+    
+    func SavePlan(){
+        SVProgressHUD.show()
+        if let UID = Pref.getObjectForKey(kUserBean) as? UserBean{
+            let PlanId = Pref.getObjectForKey(KPurchaase_planID)
+            let Param = ["user_id" : "\(UID.userID)",
+                "plan_id" :PlanId]
             
-            if tableView.indexPathsForSelectedRows != nil &&  (tableView.indexPathsForSelectedRows?.count)! == 1 {
-                self.baseVC.btnEdit.isHidden = false
-            } else{
-                self.baseVC.btnEdit.isHidden = true
-            }
-            return
+            print(Param)
+            ServerCall.sharedInstance.requestWithUrlAndParameters(.http_GET, urlString:URL_SAVEPLAN , parameters: Param as [String : AnyObject], delegate: self, name: .GetSavePlan)
         }
     }
-    //MARK:- MutliSelect Delegate Button Tap events.
     
-    func didSelectDelete(_ currentScreen: SelectedScreen) {
-        if currentScreen == .Transcation {
-            //Delete Transcation logic:
+    func TrumCondition(){
+        SVProgressHUD.show(withStatus: "")
+        let Param = ["page_id" : "\(1)"]
+        print(Param)
+        ServerCall.sharedInstance.requestWithUrlAndParameters(.http_POST, urlString: URL_PRIVACYPOLICY, parameters: Param as [String : AnyObject], delegate: self, name: .PrivacyPolicy)
+    }
+    
+    func ServerCallSuccess(_ resposeObject: AnyObject, name: ServerCallName) {
+        print("\n\n\n SUCCESS Privacy&Policy ........... \n\(resposeObject)")
+        SVProgressHUD.dismiss()
+        
+        
+        ResponceSetting(resposeObject)
+        
             
-            if tblViewTransaction.indexPathsForSelectedRows != nil &&
-                (tblViewTransaction.indexPathsForSelectedRows?.count)! > 0  {
-                
-                baseVC.lblselectedindex.text = "0" + " Selected"
-                self.selectTotalCount = 0
-                
-                var arrTranToDelete = [Transaction]()
-                for SelectedPath in tblViewTransaction.indexPathsForSelectedRows! {
-                    arrTranToDelete.append(arrTransactions[SelectedPath.row])
-                }
-                let result = TransactionManager.deleteTransactions(arrTranToDelete)
-                if result.success == false {
-                    self.showAlert("Alert!", message: result.message)
-                }
-                else {
-         
-                    updateTranscationList()
-                }
-            }
-            self.DidSelectedRefresh()
-        }
-    }
-    
-    func didSelectEdit(_ currentScreen: SelectedScreen) {
-        if currentScreen == .Transcation {
-            //Edit Transcation logic:
+         if name == .GetSavePlan {
+            print("\n\n\n AvalableClass Sucess ........... \n \(resposeObject)")
             
-            if tblViewTransaction.indexPathsForSelectedRows != nil &&
-                (tblViewTransaction.indexPathsForSelectedRows?.count)! > 0  {
-                baseVC.lblselectedindex.text = "0" + " Selected"
-                self.selectTotalCount = 0
-                let selectedIdxPath = tblViewTransaction.indexPathsForSelectedRows!.first!
-                let selectedtranObj = arrTransactions[selectedIdxPath.row]
-                let Accountvc = storyboard?.instantiateViewController(withIdentifier: "AccountDetailVC")as! AccountDetailVC
-                    Accountvc.TranBean = selectedtranObj
+            let DicData = resposeObject as! [String : AnyObject]
+            if let States = DicData["status"]as? String{
                 
-                self.navigationController?.pushViewController(Accountvc, animated: true)
+                if States == "0"{
+                    
+                    let alert = UIAlertController(title: "", message: resposeObject["message"] as? String , preferredStyle: UIAlertControllerStyle.alert)
+                    alert.addAction(UIAlertAction(title: "OK", style: .default, handler: { (action : UIAlertAction) in
+                    }))
+                    
+                    self.present(alert, animated: true, completion: nil)
+                    
+                }
+                else if States == "1"{
+                    let TheLoginVc = self.storyboard?.instantiateViewController(withIdentifier: "SingInVC") as! UINavigationController
+                    
+                    for key in UserDefaults.standard.dictionaryRepresentation().keys{
+                        if key != kDeviceToken
+                        {
+                            UserDefaults.standard.removeObject(forKey: key.description)
+                        }
+                        
+                    }
+                    print(Pref.getObjectForKey(kDeviceToken) ?? "popat")
+                    let appDelegate = UIApplication.shared.delegate as! AppDelegate
+                    appDelegate.window?.rootViewController = TheLoginVc
+                    appDelegate.window?.makeKeyAndVisible()
+                    
+                    FBHelper.logout()
+                    GIDSignIn.sharedInstance().signOut()
+                    Pref.setObject(false as NSObject?, forKey: kIsLoggedIn)
+                }
+                else if States == "2"{
+                    
+                }
             }
-           self.DidSelectedRefresh()
         }
     }
     
-    func didSelectDone(_ currentScreen: SelectedScreen) {
-        if currentScreen == .Transcation {
-            //Done Transcation logic.
-           self.DidSelectedRefresh()
+    func ServerCallFailed(_ errorObject: String, name: ServerCallName) {
+        SVProgressHUD.dismiss()
+        print("\n\n\n Privacy Faile......... \n\(errorObject)")
+        if name == .GetSavePlan{
+            print("\n\n\n AvalableClass Sucess ........... \n \(errorObject)")
         }
     }
     
     
-    //MARK: - Time Period Delegate
-    func didSelectTimePeriod(fromDate from_date: Date, to_date: Date) {
-       updateTranscationList()
+    func ResponceSetting(_ objResponse : AnyObject){
+        ArrySetting.removeAll()
+        if let DataDic = objResponse as? [String : Any],
+            let DicData = DataDic["response_data"] as? [[String : Any]] {
+            for  DicResult in DicData {
+                let Bean = SettingBean()
+                
+                Bean.Description = TO_STRING(DicResult["txt_description"] ?? "")
+                Bean.headerName = TO_STRING(DicResult["var_question"] ?? "")
+                Bean.Id = TO_INT(DicResult["int_id"] ?? 0)
+                print(Bean.Description)
+                
+                self.txtTreamCondition.text = Bean.Description
+                
+                ArrySetting.append(Bean)
+            }
+            self.tblViewDiscription.reloadData()
+        }
+        
     }
-    //Didselectd Button Reload
-    func DidSelectedRefresh(){
-         baseVC.lblselectedindex.text = "0" + " Selected"
-        self.selectTotalCount = 0
-        baseVC.ViewselectedIndex.isHidden = true
-        self.multiselectMode = false
-        self.tblViewTransaction.addGestureRecognizer(longPressRecognizer)
-        self.tblViewTransaction.reloadData()
-    }
-    
-    
-    
-    //MARK:- Other method
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
-    }
-    
-
-
+   
 }
-==============++++++++++++++++++++++***************************************************************+++++++++++++++
